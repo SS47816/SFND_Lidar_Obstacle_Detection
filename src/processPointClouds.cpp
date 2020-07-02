@@ -163,10 +163,7 @@ Box ProcessPointClouds<PointT>::BoundingBox(typename pcl::PointCloud<PointT>::Pt
 template<typename PointT>
 BoxQ ProcessPointClouds<PointT>::MinimumBoundingBox(typename pcl::PointCloud<PointT>::Ptr cluster)
 {
-
     // Find bounding box for one of the clusters
-    // PointT minPoint, maxPoint;
-    // pcl::getMinMax3D(*cluster, minPoint, maxPoint);
 
     // Compute principal directions
     Eigen::Vector4f pcaCentroid;
@@ -177,6 +174,7 @@ BoxQ ProcessPointClouds<PointT>::MinimumBoundingBox(typename pcl::PointCloud<Poi
     Eigen::Matrix3f eigenVectorsPCA = eigen_solver.eigenvectors();
     eigenVectorsPCA.col(2) = eigenVectorsPCA.col(0).cross(eigenVectorsPCA.col(1));  /// This line is necessary for proper orientation in some cases. The numbers come out the same without it, but
                                                                                     ///    the signs are different and the box doesn't get correctly oriented in some cases.
+    
     /* // Note that getting the eigenvectors can also be obtained via the PCL PCA interface with something like:
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloudPCAprojection (new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PCA<pcl::PointXYZ> pca;
@@ -193,6 +191,7 @@ BoxQ ProcessPointClouds<PointT>::MinimumBoundingBox(typename pcl::PointCloud<Poi
     projectionTransform.block<3,1>(0,3) = -1.f * (projectionTransform.block<3,3>(0,0) * pcaCentroid.head<3>());
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloudPointsProjected (new pcl::PointCloud<pcl::PointXYZ>);
     pcl::transformPointCloud(*cluster, *cloudPointsProjected, projectionTransform);
+    
     // Get the minimum and maximum points of the transformed cloud.
     pcl::PointXYZ minPoint, maxPoint;
     pcl::getMinMax3D(*cloudPointsProjected, minPoint, maxPoint);
@@ -202,17 +201,7 @@ BoxQ ProcessPointClouds<PointT>::MinimumBoundingBox(typename pcl::PointCloud<Poi
     const Eigen::Quaternionf bboxQuaternion(eigenVectorsPCA); //Quaternions are a way to do rotations https://www.youtube.com/watch?v=mHVwd8gYLnI
     const Eigen::Vector3f bboxTransform = eigenVectorsPCA * meanDiagonal + pcaCentroid.head<3>();
 
-    // This viewer has 4 windows, but is only showing images in one of them as written here.
-    // pcl::visualization::PCLVisualizer *visu;
-    // visu = new pcl::visualization::PCLVisualizer (argc, argv, "PlyViewer");
-    // int mesh_vp_1, mesh_vp_2, mesh_vp_3, mesh_vp_4;
-    // visu->createViewPort (0.0, 0.5, 0.5, 1.0,  mesh_vp_1);
-    // visu->createViewPort (0.5, 0.5, 1.0, 1.0,  mesh_vp_2);
-    // visu->createViewPort (0.0, 0, 0.5, 0.5,  mesh_vp_3);
-    // visu->createViewPort (0.5, 0, 1.0, 0.5, mesh_vp_4);
-    // visu->addPointCloud(cluster, ColorHandlerXYZ(cluster, 30, 144, 255), "bboxedCloud", mesh_vp_3);
-    // visu->addCube(bboxTransform, bboxQuaternion, maxPoint.x - minPoint.x, maxPoint.y - minPoint.y, maxPoint.z - minPoint.z, "bbox", mesh_vp_3);
-
+    // Form the box
     BoxQ box;
     box.cube_length = maxPoint.x - minPoint.x;
     box.cube_width = maxPoint.y - minPoint.y;
