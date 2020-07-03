@@ -174,7 +174,25 @@ BoxQ ProcessPointClouds<PointT>::MinimumBoundingBox(typename pcl::PointCloud<Poi
     Eigen::Matrix3f eigenVectorsPCA = eigen_solver.eigenvectors();
     eigenVectorsPCA.col(2) = eigenVectorsPCA.col(0).cross(eigenVectorsPCA.col(1));  /// This line is necessary for proper orientation in some cases. The numbers come out the same without it, but
                                                                                     ///    the signs are different and the box doesn't get correctly oriented in some cases.
-    
+    // TODO: Limit the PCA to the grond plane
+    // eigenVectorsPCA.row(0).col(2) << 1.0f;
+    // eigenVectorsPCA.row(2).col(0) << 1.0f;
+    // // eigenVectorsPCA.row(2).col(2) << 0.0f;
+    // eigenVectorsPCA.row(2).col(1) << 1.0f;
+    // eigenVectorsPCA.row(1).col(2) << 1.0f;
+
+    // Print Matrix
+    std::cout << "eigenVectorsPCA: " << std::endl;
+    for (int i = 0; i < 3; i++)
+    {
+        for (int j = 0; j < 3; j++)
+        {
+            std::cout << eigenVectorsPCA.row(i).col(j) << ", ";
+        }
+        std::cout << std::endl;
+    }
+        
+
     /* // Note that getting the eigenvectors can also be obtained via the PCL PCA interface with something like:
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloudPCAprojection (new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PCA<pcl::PointXYZ> pca;
