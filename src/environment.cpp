@@ -90,7 +90,15 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer)
 
     ProcessPointClouds<pcl::PointXYZI>* pointProcessorI = new ProcessPointClouds<pcl::PointXYZI>();
     pcl::PointCloud<pcl::PointXYZI>::Ptr inputCloud = pointProcessorI->loadPcd("../src/sensors/data/pcd/data_1/0000000000.pcd");
-    renderPointCloud(viewer, inputCloud, "inputCloud");
+    
+    // Filter the inputCloud
+    float max_length = 10.0;
+    float max_width = 5.0;
+    float pos_height = 5.0;
+    float neg_height = 2.0;
+    auto filterCloud = pointProcessorI->FilterCloud(inputCloud, 0.1, Eigen::Vector4f(-max_length, -max_width, -neg_height, 1), Eigen::Vector4f(max_length, max_width, pos_height, 1));
+    
+    renderPointCloud(viewer, filterCloud, "filterCloud");
 }
 
 //setAngle: SWITCH CAMERA ANGLE {XY, TopDown, Side, FPS}
