@@ -344,7 +344,7 @@ std::unordered_set<int> ProcessPointClouds<PointT>::Ransac3D(typename pcl::Point
 			if (inliers.count(index) > 0) 
 				continue;
 
-			typename PointT point = cloud->points[index];
+			PointT point = cloud->points[index];
 			float x3 = point.x;
 			float y3 = point.y;
 			float z3 = point.z;
@@ -382,7 +382,7 @@ std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT
     {
         for(int index = 0; index < cloud->points.size(); index++)
         {
-            typename PointT point = cloud->points[index];
+            PointT point = cloud->points[index];
             if(inliers.count(index))
                 cloudInliers->points.push_back(point);
             else
@@ -398,17 +398,17 @@ std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
     std::cout << "plane segmentation took " << elapsedTime.count() << " milliseconds" << std::endl;
 
-    std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT>::Ptr> segResult(cloudInliers, cloudOutliers);
+    std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT>::Ptr> segResult(cloudOutliers, cloudInliers);
     return segResult;
 }
 
 template<typename PointT>
-void ProcessPointClouds<PointT>::clusterHelper(int indice, typename pcl::PointCloud<PointT>::Ptr points, std::vector<int>& clusterIndices, std::vector<bool>& processed, typename KdTree<PointT>* tree, float distanceTol)
+void ProcessPointClouds<PointT>::clusterHelper(int indice, typename pcl::PointCloud<PointT>::Ptr points, std::vector<int>& clusterIndices, std::vector<bool>& processed, KdTree<PointT>* tree, float distanceTol)
 {
 	processed[indice] = true;
 	clusterIndices.push_back(indice);
 
-	std::vector<int> nearest = tree->search(points[indice], distanceTol);
+	std::vector<int> nearest = tree->search(points->points[indice], distanceTol);
 
 	for (int id : nearest)
 	{
@@ -418,7 +418,7 @@ void ProcessPointClouds<PointT>::clusterHelper(int indice, typename pcl::PointCl
 }
 
 template<typename PointT>
-std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::euclideanCluster(typename pcl::PointCloud<PointT>::Ptr cloud, KdTree* tree, float distanceTol)
+std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::euclideanCluster(typename pcl::PointCloud<PointT>::Ptr cloud, KdTree<PointT>* tree, float distanceTol)
 {
 	std::vector<typename pcl::PointCloud<PointT>::Ptr> clusters;
 
@@ -459,7 +459,7 @@ std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::C
     auto startTime = std::chrono::steady_clock::now();
 
     // Create a KD Tree and insert the points
-    typename KdTree<PointT>* tree = new typename KdTree<PointT>;
+    KdTree<PointT>* tree = new KdTree<PointT>;
     for (int i = 0; i < cloud->points.size(); i++) 
     	tree->insert(cloud->points[i], i); 
 

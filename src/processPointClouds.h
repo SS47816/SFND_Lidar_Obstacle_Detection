@@ -39,11 +39,11 @@ struct KdTree
 
     KdTree() : root(NULL) {};
 
-    void insertHelper(Node<PointT>** node, uint depth, const typename PointT& point, int id)
+    void insertHelper(Node<PointT>** node, uint depth, const PointT& point, int id)
     {
         // Tree is empty
         if (*node == NULL)
-            *node = new Node(point, id);
+            *node = new Node<PointT>(point, id);
         else
         {
             // Calulate current dimension
@@ -56,14 +56,14 @@ struct KdTree
         }
     }
 
-    void insert(const typename PointT& point, int id)
+    void insert(const PointT& point, int id)
     {
         // TODO: Fill in this function to insert a new point into the tree
         // the function should create a new node and place correctly with in the root 
         insertHelper(&root, 0, point, id);
     }
 
-    void searchHelper(const typename PointT& target, typename Node<PointT>* node, int depth, float distanceTol, std::vector<int>& ids)
+    void searchHelper(const PointT& target, Node<PointT>* node, int depth, float distanceTol, std::vector<int>& ids)
     {
         if (node != NULL)
         {
@@ -87,7 +87,7 @@ struct KdTree
     }
     
     // return a list of point ids in the tree that are within distance of target
-    std::vector<int> search(const typename PointT& target, float distanceTol)
+    std::vector<int> search(const PointT& target, float distanceTol)
     {
         std::vector<int> ids;
         searchHelper(target, root, 0, distanceTol, ids);
@@ -130,9 +130,9 @@ public:
 
     std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT>::Ptr> CustomizedSegmentPlane(typename pcl::PointCloud<PointT>::Ptr cloud, int maxIterations, float distanceThreshold);
 
-    void clusterHelper(int indice, typename pcl::PointCloud<PointT>::Ptr points, std::vector<int>& cluster, std::vector<bool>& processed, typename KdTree<PointT>* tree, float distanceTol);
+    void clusterHelper(int indice, typename pcl::PointCloud<PointT>::Ptr points, std::vector<int>& cluster, std::vector<bool>& processed, KdTree<PointT>* tree, float distanceTol);
 
-    std::vector<typename pcl::PointCloud<PointT>::Ptr> euclideanCluster(typename pcl::PointCloud<PointT>::Ptr cloud, typename KdTree<PointT>* tree, float distanceTol);
+    std::vector<typename pcl::PointCloud<PointT>::Ptr> euclideanCluster(typename pcl::PointCloud<PointT>::Ptr cloud, KdTree<PointT>* tree, float distanceTol);
 
     std::vector<typename pcl::PointCloud<PointT>::Ptr> CustomizedClustering(typename pcl::PointCloud<PointT>::Ptr cloud, float clusterTolerance, int minSize, int maxSize);
     // End of Project Code
