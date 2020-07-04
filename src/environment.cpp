@@ -93,18 +93,18 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
     
     // Filter the inputCloud
     float max_length = 30.0;
-    float max_width = 10.0;
+    float max_width = 6.0;
     float pos_height = 1.0;
     float neg_height = 2.0;
     auto filterCloud = pointProcessorI->FilterCloud(inputCloud, 0.2, Eigen::Vector4f(-max_length, -max_width, -neg_height, 1), Eigen::Vector4f(max_length, max_width, pos_height, 1));
     // renderPointCloud(viewer, filterCloud, "filterCloud");
     
     // Segment the filtered cloud into two parts, road and obstacles.
-    std::pair<pcl::PointCloud<pcl::PointXYZI>::Ptr, pcl::PointCloud<pcl::PointXYZI>::Ptr> segmentCloud = pointProcessorI->SegmentPlane(filterCloud, 100, 0.2);
+    std::pair<pcl::PointCloud<pcl::PointXYZI>::Ptr, pcl::PointCloud<pcl::PointXYZI>::Ptr> segmentCloud = pointProcessorI->CustomizedSegmentPlane(filterCloud, 100, 0.2);
     // renderPointCloud(viewer, segmentCloud.first, "obstCloud", Color(1,0,0));
     renderPointCloud(viewer, segmentCloud.second, "planeCloud", Color(0.1, 1, 0.1));
 
-    std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> cloudClusters = pointProcessorI->Clustering(segmentCloud.first, 0.4, 30, 10000);
+    std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> cloudClusters = pointProcessorI->CustomizedClustering(segmentCloud.first, 0.4, 30, 10000);
     
     // Render the clusters
     int clusterId = 0;

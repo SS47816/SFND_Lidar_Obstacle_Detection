@@ -299,3 +299,177 @@ std::vector<boost::filesystem::path> ProcessPointClouds<PointT>::streamPcd(std::
     return paths;
 
 }
+
+// Start of Project Code
+template<typename PointT>
+std::unordered_set<int> ProcessPointClouds<PointT>::Ransac3D(typename pcl::PointCloud<PointT>::Ptr cloud, int maxIterations, float distanceTol)
+{
+	auto startTime = std::chrono::steady_clock::now();
+	std::unordered_set<int> inliersResult;
+	srand(time(NULL));
+	
+	// For max iterations 
+	while (maxIterations--)
+	{
+		// Randomly sample subset and fit line
+		std::unordered_set<int> inliers;
+		while (inliers.size() < 3)
+			inliers.insert(rand()%(cloud->points.size()));
+
+		float x1, x2, x3, y1, y2, y3, z1, z2, z3;
+
+		auto iter = inliers.begin();
+		x1 = cloud->points[*iter].x;
+		y1 = cloud->points[*iter].y;
+		z1 = cloud->points[*iter].z;
+	
+		iter++;
+		x2 = cloud->points[*iter].x;
+		y2 = cloud->points[*iter].y;
+		z2 = cloud->points[*iter].z;
+
+		iter++;
+		x3 = cloud->points[*iter].x;
+		y3 = cloud->points[*iter].y;
+		z3 = cloud->points[*iter].z;
+
+		float A = (y2 - y1)*(z3 - z1) - (z2 - z1)*(y3 - y1);
+		float B = (z2 - z1)*(x3 - x1) - (x2 - x1)*(z3 - z1);
+		float C = (x2 - x1)*(y3 - y1) - (y2 - y1)*(x3 - x1);
+		float D = -(A*x1 + B*y1 + C*z1);
+
+		// Measure distance between every point and fitted line
+		for (int index = 0; index < cloud->points.size(); index++)
+		{
+			if (inliers.count(index) > 0) 
+				continue;
+
+			typename PointT point = cloud->points[index];
+			float x3 = point.x;
+			float y3 = point.y;
+			float z3 = point.z;
+
+			// If distance is smaller than threshold count it as inlier
+			float d = fabs(A*x3 + B*y3 + C*z3 + D)/sqrt(A*A + B*B + C*C);
+			if (d <= distanceTol)
+				inliers.insert(index);
+		}
+
+		// Return indicies of inliers from fitted line with most inliers
+		if (inliers.size() > inliersResult.size())
+			inliersResult = inliers;
+	}
+	
+	auto endTime = std::chrono::steady_clock::now();
+	auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+	std::cout << "RANSAC took " << elapsedTime.count() << " milliseconds" << std::endl;
+
+	return inliersResult;
+}
+
+template<typename PointT>
+std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::CustomizedSegmentPlane(typename pcl::PointCloud<PointT>::Ptr cloud, int maxIterations, float distanceThreshold)
+{
+    // Time segmentation process
+    auto startTime = std::chrono::steady_clock::now();
+
+    std::unordered_set<int> inliers = Ransac3D(cloud, maxIterations, distanceThreshold);
+
+    typename pcl::PointCloud<PointT>::Ptr  cloudInliers(new typename pcl::PointCloud<PointT>());
+    typename pcl::PointCloud<PointT>::Ptr cloudOutliers(new typename pcl::PointCloud<PointT>());
+    
+    if (!inliers.empty())
+    {
+        for(int index = 0; index < cloud->points.size(); index++)
+        {
+            typename PointT point = cloud->points[index];
+            if(inliers.count(index))
+                cloudInliers->points.push_back(point);
+            else
+                cloudOutliers->points.push_back(point); 
+        }
+    }
+    else
+    {
+        std::cout << "Could not estimate a planar model for the given dataset." << std::endl;
+    }
+    
+    auto endTime = std::chrono::steady_clock::now();
+    auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+    std::cout << "plane segmentation took " << elapsedTime.count() << " milliseconds" << std::endl;
+
+    std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT>::Ptr> segResult(cloudInliers, cloudOutliers);
+    return segResult;
+}
+
+template<typename PointT>
+void ProcessPointClouds<PointT>::clusterHelper(int indice, typename pcl::PointCloud<PointT>::Ptr points, std::vector<int>& clusterIndices, std::vector<bool>& processed, typename KdTree<PointT>* tree, float distanceTol)
+{
+	processed[indice] = true;
+	clusterIndices.push_back(indice);
+
+	std::vector<int> nearest = tree->search(points[indice], distanceTol);
+
+	for (int id : nearest)
+	{
+		if (!processed[id])
+			clusterHelper(id, points, clusterIndices, processed, tree, distanceTol);
+	}
+}
+
+template<typename PointT>
+std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::euclideanCluster(typename pcl::PointCloud<PointT>::Ptr cloud, KdTree* tree, float distanceTol)
+{
+	std::vector<typename pcl::PointCloud<PointT>::Ptr> clusters;
+
+	std::vector<bool> processed(cloud->points.size(), false);
+	
+	int i = 0;
+	while (i < cloud->points.size())
+	{
+		if (processed[i])
+		{
+			i++;
+			continue;
+		}
+		
+		std::vector<int> clusterIndices;
+		clusterHelper(i, cloud, clusterIndices, processed, tree, distanceTol);
+        
+        typename pcl::PointCloud<PointT>::Ptr cluster (new pcl::PointCloud<PointT>);
+        for (auto index : clusterIndices)
+            cluster->points.push_back(cloud->points[index]);
+        
+        cluster->width = cluster->points.size();
+        cluster->height = 1;
+        cluster->is_dense = true;
+
+        clusters.push_back(cluster);
+		i++;
+	}
+
+	return clusters;
+}
+
+template<typename PointT>
+std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::CustomizedClustering(typename pcl::PointCloud<PointT>::Ptr cloud, float clusterTolerance, int minSize, int maxSize)
+{
+
+    // Time clustering process
+    auto startTime = std::chrono::steady_clock::now();
+
+    // Create a KD Tree and insert the points
+    typename KdTree<PointT>* tree = new typename KdTree<PointT>;
+    for (int i = 0; i < cloud->points.size(); i++) 
+    	tree->insert(cloud->points[i], i); 
+
+  	std::vector<typename pcl::PointCloud<PointT>::Ptr> clusters = euclideanCluster(cloud, tree, clusterTolerance);
+
+  	auto endTime = std::chrono::steady_clock::now();
+  	auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+  	std::cout << "clustering found " << clusters.size() << " and took " << elapsedTime.count() << " milliseconds" << std::endl;
+
+    return clusters;
+}
+
+// End of Project Code
