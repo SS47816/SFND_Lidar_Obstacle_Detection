@@ -160,24 +160,23 @@ int main (int argc, char** argv)
     // simpleHighway(viewer);
 
     ProcessPointClouds<pcl::PointXYZI>* pointProcessorI = new ProcessPointClouds<pcl::PointXYZI>();
-    std::vector<boost::filesystem::path> stream = pointProcessorI->streamPcd("../src/sensors/data/pcd/data_1");
+    std::vector<boost::filesystem::path> stream = pointProcessorI->streamPcd("../src/sensors/data/pcd/data_2");
     auto streamIterator = stream.begin();
     pcl::PointCloud<pcl::PointXYZI>::Ptr inputCloudI;
 
     while (!viewer->wasStopped ())
     {
+        // Clear viewer
+        viewer->removeAllPointClouds();
+        viewer->removeAllShapes();
 
-    // Clear viewer
-    viewer->removeAllPointClouds();
-    viewer->removeAllShapes();
+        // Load pcd and run obstacle detection process
+        inputCloudI = pointProcessorI->loadPcd((*streamIterator).string());
+        cityBlock(viewer, pointProcessorI, inputCloudI);
 
-    // Load pcd and run obstacle detection process
-    inputCloudI = pointProcessorI->loadPcd((*streamIterator).string());
-    cityBlock(viewer, pointProcessorI, inputCloudI);
-
-    streamIterator++;
-    if(streamIterator == stream.end())
-        streamIterator = stream.begin();
+        streamIterator++;
+        if(streamIterator == stream.end())
+            streamIterator = stream.begin();
 
         viewer->spinOnce ();
     }
