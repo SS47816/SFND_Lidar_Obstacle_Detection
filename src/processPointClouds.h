@@ -115,7 +115,7 @@ public:
 
     std::vector<typename pcl::PointCloud<PointT>::Ptr> Clustering(typename pcl::PointCloud<PointT>::Ptr cloud, float clusterTolerance, int minSize, int maxSize);
 
-    Box BoundingBox(typename pcl::PointCloud<PointT>::Ptr cluster);
+    Box BoundingBox(typename pcl::PointCloud<PointT>::Ptr cluster, int id);
 
     BoxQ MinimumBoundingBox(typename pcl::PointCloud<PointT>::Ptr cluster);
     
@@ -125,16 +125,45 @@ public:
 
     std::vector<boost::filesystem::path> streamPcd(std::string dataPath);
     
-    // Start of Project Code
+    // ###################### Start of Project Code ##########################
+
+    // Customized 3D Ransac Algoeithm
     std::unordered_set<int> Ransac3D(typename pcl::PointCloud<PointT>::Ptr cloud, int maxIterations, float distanceTol);
 
+    // Customized ground plane segmentation
     std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT>::Ptr> CustomizedSegmentPlane(typename pcl::PointCloud<PointT>::Ptr cloud, int maxIterations, float distanceThreshold);
 
+    // Helper function for clustering
     void clusterHelper(int indice, typename pcl::PointCloud<PointT>::Ptr points, std::vector<int>& cluster, std::vector<bool>& processed, KdTree<PointT>* tree, float distanceTol);
 
+    // Helper function for clustering
     std::vector<typename pcl::PointCloud<PointT>::Ptr> euclideanCluster(typename pcl::PointCloud<PointT>::Ptr cloud, KdTree<PointT>* tree, float distanceTol);
 
+    // Cluster Obstacles
     std::vector<typename pcl::PointCloud<PointT>::Ptr> CustomizedClustering(typename pcl::PointCloud<PointT>::Ptr cloud, float clusterTolerance, int minSize, int maxSize);
-    // End of Project Code
+    
+    // ****************** Tracking ***********************
+    std::vector<float> getCentroid(const Box& a);
+
+	std::vector<float> getDimension(const Box& a);
+
+	float getVolume(const Box& a);
+
+	bool compareBoxes(const Box& a, const Box& b, float& displacementTol, float& volumeTol);
+
+    
+    // Link nearby bounding boxes between the previous and previous frame
+    std::vector<std::vector<int>> associateBoxes(const std::vector<Box>& preBoxes, const std::vector<Box>& curBoxes, float displacementTol, float volumeTol);
+
+    // connectionMatrix
+    std::vector<std::vector<int>> connectionMatrix(const std::vector<std::vector<int>>& connectionPairs, std::vector<int>& left, std::vector<int>& right);
+
+    // Helper function for Hungarian Algorithm
+    bool hungarianFind(const int i, const std::vector<std::vector<int>>& connectionMatrix, std::vector<bool>& right_connected, std::vector<int>& right_pair);
+    
+    // Customized Hungarian Algorithm
+    std::vector<int> hungarian(const std::vector<std::vector<int>>& connectionMatrix);
+    
+    // ######################### End of Project Code ###############################
 };
 #endif /* PROCESSPOINTCLOUDS_H_ */

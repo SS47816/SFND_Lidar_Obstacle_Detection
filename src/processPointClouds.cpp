@@ -175,7 +175,7 @@ std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::C
 
 
 template<typename PointT>
-Box ProcessPointClouds<PointT>::BoundingBox(typename pcl::PointCloud<PointT>::Ptr cluster)
+Box ProcessPointClouds<PointT>::BoundingBox(typename pcl::PointCloud<PointT>::Ptr cluster, int id)
 {
 
     // Find bounding box for one of the clusters
@@ -183,6 +183,7 @@ Box ProcessPointClouds<PointT>::BoundingBox(typename pcl::PointCloud<PointT>::Pt
     pcl::getMinMax3D(*cluster, minPoint, maxPoint);
 
     Box box;
+    box.id = id;
     box.x_min = minPoint.x;
     box.y_min = minPoint.y;
     box.z_min = minPoint.z;
@@ -300,7 +301,7 @@ std::vector<boost::filesystem::path> ProcessPointClouds<PointT>::streamPcd(std::
 
 }
 
-// Start of Project Code
+// ########################## Start of Project Code ##################################
 template<typename PointT>
 std::unordered_set<int> ProcessPointClouds<PointT>::Ransac3D(typename pcl::PointCloud<PointT>::Ptr cloud, int maxIterations, float distanceTol)
 {
@@ -472,4 +473,145 @@ std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::C
     return clusters;
 }
 
-// End of Project Code
+// ************************* Tracking ***************************
+template<typename PointT>
+std::vector<float> ProcessPointClouds<PointT>::getCentroid(const Box& a)
+{
+    return {(a.x_max + a.x_min) / 2, (a.y_max + a.y_min) / 2, (a.z_max + a.z_min) / 2};
+}
+
+template<typename PointT>
+std::vector<float> ProcessPointClouds<PointT>::getDimension(const Box& a)
+{
+    return {a.x_max - a.x_min, a.y_max - a.y_min, a.z_max - a.z_min};
+}
+
+template<typename PointT>
+float ProcessPointClouds<PointT>::getVolume(const Box& a)
+{
+    return (a.x_max - a.x_min)*(a.y_max - a.y_min)*(a.z_max - a.z_min);
+}
+
+template<typename PointT>
+bool ProcessPointClouds<PointT>::compareBoxes(const Box& a, const Box& b, float& displacementTol, float& volumeTol)
+{
+    const std::vector<float> a_ctr = this->getCentroid(a);
+    const std::vector<float> b_ctr = this->getCentroid(b);
+    const std::vector<float> a_dim = this->getDimension(a);
+    const std::vector<float> b_dim = this->getDimension(b);
+
+    // Percetage Displacements ranging between [0.0, 1.0]
+    const float x_dis = fabs(a_ctr[0] - b_ctr[0]) / (a_dim[0] + b_dim[0]) * 2;
+    const float y_dis = fabs(a_ctr[1] - b_ctr[1]) / (a_dim[1] + b_dim[1]) * 2;
+    const float z_dis = fabs(a_ctr[2] - b_ctr[2]) / (a_dim[2] + b_dim[2]) * 2;
+
+    // Volume similiarity value between [0.0, 1.0]
+    float vlm_diff = fabs(this->getVolume(a) - this->getVolume(b)) / (this->getVolume(a) + this->getVolume(b)) * 2;
+
+    if (x_dis <= displacementTol && y_dis <= displacementTol && z_dis <= displacementTol && vlm_diff <= volumeTol)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+template<typename PointT>
+std::vector<std::vector<int>> ProcessPointClouds<PointT>::associateBoxes(const std::vector<Box>& preBoxes, const std::vector<Box>& curBoxes, float displacementTol, float volumeTol)
+{
+    std::vector<std::vector<int>> connectionPairs;
+
+    for (auto& curBox : curBoxes)
+    {
+        for (auto& preBox : preBoxes)
+        {
+            // Add the indecies of a pair of similiar boxes to the matrix
+            if (this->compareBoxes(curBox, preBox, displacementTol, volumeTol))
+            {
+                connectionPairs.push_back({preBox.id, curBox.id});
+            }
+        }
+    }
+
+    return connectionPairs;
+}
+
+template<typename PointT>
+std::vector<std::vector<int>> ProcessPointClouds<PointT>::connectionMatrix(const std::vector<std::vector<int>>& connectionPairs, std::vector<int>& left, std::vector<int>& right)
+{
+    // Hash the box ids in the connectionPairs to two vectors(sets), left and right
+    for (auto& pair : connectionPairs)
+    {
+        bool left_found = false;
+        for (auto i : left)
+        {
+            if (i == pair[0]) left_found = true;
+        }
+        if (!left_found) left.push_back(pair[0]);
+
+        bool right_found = false;
+        for (auto j : right)
+        {
+            if (j == pair[1]) right_found = true;
+        }
+        if (!right_found) right.push_back(pair[1]);
+
+    }
+
+    std::vector<std::vector<int>> connectionMatrix(left.size(), std::vector<int>(right.size(), 0));
+
+    for (auto& pair : connectionPairs)
+    {
+        int left_index = -1;
+        for (int i = 0; i < left.size(); ++i)
+        {
+            if (pair[0] == left[i]) left_index = i;
+        }
+
+        int right_index = -1;
+        for (int i = 0; i < right.size(); ++i)
+        {
+            if (pair[1] == right[i]) right_index = i;
+        }
+
+        connectionMatrix[left_index][right_index] = 1;
+    }
+    
+    return connectionMatrix;
+}
+
+template<typename PointT>
+bool ProcessPointClouds<PointT>::hungarianFind(const int i, const std::vector<std::vector<int>>& connectionMatrix, std::vector<bool>& right_connected, std::vector<int>& right_pair)
+{
+    for (int j = 0; j < connectionMatrix[0].size(); ++j)
+    {
+        if (connectionMatrix[i][j] == 1 && right_connected[j] == false)
+        {
+            right_connected[j] = true;
+
+            if (right_pair[j] == -1 || hungarianFind(right_pair[j], connectionMatrix, right_connected, right_pair))
+            {
+                right_pair[j] = i;
+                return true;
+            }
+        }
+    }
+}
+
+template<typename PointT>
+std::vector<int> ProcessPointClouds<PointT>::hungarian(const std::vector<std::vector<int>>& connectionMatrix)
+{
+    std::vector<bool> right_connected(connectionMatrix[0].size(), false);
+    std::vector<int> right_pair(connectionMatrix[0].size(), -1);
+
+    int count = 0;
+    for (int i = 0; i < connectionMatrix.size(); ++i)
+    {
+        if (hungarianFind(i, connectionMatrix, right_connected, right_pair)) count++;
+    }
+
+    return right_pair;
+}
+// ########################## End of Project Code ###################################

@@ -82,7 +82,7 @@ void simpleHighway(pcl::visualization::PCLVisualizer::Ptr& viewer)
     }
 }
 
-void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointClouds<pcl::PointXYZI>* pointProcessorI, const pcl::PointCloud<pcl::PointXYZI>::Ptr& inputCloud)
+void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointClouds<pcl::PointXYZI>* pointProcessorI, const pcl::PointCloud<pcl::PointXYZI>::Ptr& inputCloud, std::vector<Box>& preBoxes)
 {
     // ----------------------------------------------------
     // -----Open 3D viewer and display simple highway -----
@@ -109,21 +109,53 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
     // Render the clusters
     int clusterId = 0;
     std::vector<Color> colors = {Color(1, 0.1, 0.2), Color(1, 1, 0.3), Color(0.1, 0.6, 1)};
+    std::vector<Box> curBoxes;
     for (auto cluster : cloudClusters)
     {
+        // Print cluster size
+        std::cout << "cluster size "; pointProcessorI->numPoints(cluster);
         // Render Clusters
-        std::cout << "cluster size ";
-        pointProcessorI->numPoints(cluster);
-        renderPointCloud(viewer, cluster, "obstCloud" + std::to_string(clusterId), colors[clusterId%3]);
-        
-        // Render Bounding Boxes
-        Box box = pointProcessorI->BoundingBox(cluster);
-        renderBox(viewer, box, clusterId);
-        // BoxQ box = pointProcessorI->MinimumBoundingBox(cluster);
-        // renderBox(viewer, box, clusterId);
+        renderPointCloud(viewer, cluster, "obstCloud" + std::to_string(clusterId), colors[clusterId%colors.size()]);
 
+        curBoxes.emplace_back(pointProcessorI->BoundingBox(cluster, clusterId));
+        
         ++clusterId;
     }
+
+    // Tracking
+    std::vector<int> matches;
+    if (!preBoxes.empty() && !curBoxes.empty())
+    {
+        // vectors containing the id of boxes in left and right sets
+        std::vector<int> left;
+        std::vector<int> right;
+        auto connectionPairs = pointProcessorI->associateBoxes(preBoxes, curBoxes, 0.2, 0.2);
+        auto connectionMatrix = pointProcessorI->connectionMatrix(connectionPairs, left, right);
+        matches = pointProcessorI->hungarian(connectionMatrix);
+
+        for (int j = 0; j < matches.size(); ++j)
+        {
+            // find the index of the current box that needs to be changed
+            const auto cur_id = right[j];
+            const auto cur_index = cur_id; // for a current box, its id is the same as its index in the vector
+            
+            // find the index of the previous box that the current box corresponds to
+            const auto index = matches[j];
+            const auto pre_id = left[index];
+            // change the current box id to the same as the previous box
+            curBoxes[cur_index].id = pre_id;
+        }
+    }
+
+    // Render boxes
+    for (auto& box : curBoxes)
+    {
+        // Render Bounding Boxes
+        renderBox(viewer, box, box.id, colors[box.id%colors.size()], 0.5);
+    }
+
+    // preBoxes.clear();
+    preBoxes = curBoxes;
 }
 
 //setAngle: SWITCH CAMERA ANGLE {XY, TopDown, Side, FPS}
@@ -164,6 +196,8 @@ int main (int argc, char** argv)
     auto streamIterator = stream.begin();
     pcl::PointCloud<pcl::PointXYZI>::Ptr inputCloudI;
 
+    std::vector<Box> preBoxes;
+    
     while (!viewer->wasStopped ())
     {
         // Clear viewer
@@ -172,7 +206,7 @@ int main (int argc, char** argv)
 
         // Load pcd and run obstacle detection process
         inputCloudI = pointProcessorI->loadPcd((*streamIterator).string());
-        cityBlock(viewer, pointProcessorI, inputCloudI);
+        cityBlock(viewer, pointProcessorI, inputCloudI, preBoxes);
 
         streamIterator++;
         if(streamIterator == stream.end())
