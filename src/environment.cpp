@@ -100,11 +100,11 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
     // renderPointCloud(viewer, filterCloud, "filterCloud");
     
     // Segment the filtered cloud into two parts, road and obstacles.
-    std::pair<pcl::PointCloud<pcl::PointXYZI>::Ptr, pcl::PointCloud<pcl::PointXYZI>::Ptr> segmentCloud = pointProcessorI->CustomizedSegmentPlane(filterCloud, 100, 0.2);
+    std::pair<pcl::PointCloud<pcl::PointXYZI>::Ptr, pcl::PointCloud<pcl::PointXYZI>::Ptr> segmentCloud = pointProcessorI->CustomizedSegmentPlane(filterCloud, 20, 0.4);
     // renderPointCloud(viewer, segmentCloud.first, "obstCloud", Color(1,0,0));
     renderPointCloud(viewer, segmentCloud.second, "planeCloud", Color(0.1, 1, 0.1));
 
-    std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> cloudClusters = pointProcessorI->CustomizedClustering(segmentCloud.first, 0.4, 30, 10000);
+    std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> cloudClusters = pointProcessorI->CustomizedClustering(segmentCloud.first, 0.4, 30, 2000);
     
     // Render the clusters
     int clusterId = 0;
@@ -117,7 +117,7 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
         // Render Clusters
         renderPointCloud(viewer, cluster, "obstCloud" + std::to_string(clusterId), colors[clusterId%colors.size()]);
 
-        curBoxes.emplace_back(pointProcessorI->BoundingBox(cluster, clusterId));
+        curBoxes.emplace_back(pointProcessorI->BoundingBox(cluster, clusterId, clusterId%colors.size()));
         
         ++clusterId;
     }
@@ -129,21 +129,23 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
         // vectors containing the id of boxes in left and right sets
         std::vector<int> left;
         std::vector<int> right;
-        auto connectionPairs = pointProcessorI->associateBoxes(preBoxes, curBoxes, 0.2, 0.2);
+        auto connectionPairs = pointProcessorI->associateBoxes(preBoxes, curBoxes, 0.5, 0.5);
         auto connectionMatrix = pointProcessorI->connectionMatrix(connectionPairs, left, right);
         matches = pointProcessorI->hungarian(connectionMatrix);
 
         for (int j = 0; j < matches.size(); ++j)
         {
             // find the index of the current box that needs to be changed
-            const auto cur_id = right[j];
-            const auto cur_index = cur_id; // for a current box, its id is the same as its index in the vector
+            const auto cur_id = right[j]; // right and matches has the same size
+            const auto cur_index = cur_id; // for a current box, its id is actually the same as its index in the vector
             
             // find the index of the previous box that the current box corresponds to
             const auto index = matches[j];
             const auto pre_id = left[index];
-            // change the current box id to the same as the previous box
-            curBoxes[cur_index].id = pre_id;
+            for (int i = 0; i < preBoxes.size(); ++i)
+            {
+                if (cur_id == preBoxes[i].id) curBoxes[cur_index].color = preBoxes[i].color; // change the color of the current box to the same as the previous box
+            }
         }
     }
 
@@ -151,10 +153,10 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
     for (auto& box : curBoxes)
     {
         // Render Bounding Boxes
-        renderBox(viewer, box, box.id, colors[box.id%colors.size()], 0.5);
+        renderBox(viewer, box, box.id, colors[box.color], 0.3);
     }
 
-    // preBoxes.clear();
+    preBoxes.clear();
     preBoxes = curBoxes;
 }
 
@@ -192,7 +194,7 @@ int main (int argc, char** argv)
     // simpleHighway(viewer);
 
     ProcessPointClouds<pcl::PointXYZI>* pointProcessorI = new ProcessPointClouds<pcl::PointXYZI>();
-    std::vector<boost::filesystem::path> stream = pointProcessorI->streamPcd("../src/sensors/data/pcd/data_2");
+    std::vector<boost::filesystem::path> stream = pointProcessorI->streamPcd("../src/sensors/data/pcd/data_1");
     auto streamIterator = stream.begin();
     pcl::PointCloud<pcl::PointXYZI>::Ptr inputCloudI;
 

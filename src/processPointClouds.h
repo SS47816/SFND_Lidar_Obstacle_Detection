@@ -115,7 +115,7 @@ public:
 
     std::vector<typename pcl::PointCloud<PointT>::Ptr> Clustering(typename pcl::PointCloud<PointT>::Ptr cloud, float clusterTolerance, int minSize, int maxSize);
 
-    Box BoundingBox(typename pcl::PointCloud<PointT>::Ptr cluster, int id);
+    Box BoundingBox(typename pcl::PointCloud<PointT>::Ptr cluster, int id, int colorId);
 
     BoxQ MinimumBoundingBox(typename pcl::PointCloud<PointT>::Ptr cluster);
     
@@ -137,7 +137,7 @@ public:
     void clusterHelper(int indice, typename pcl::PointCloud<PointT>::Ptr points, std::vector<int>& cluster, std::vector<bool>& processed, KdTree<PointT>* tree, float distanceTol);
 
     // Helper function for clustering
-    std::vector<typename pcl::PointCloud<PointT>::Ptr> euclideanCluster(typename pcl::PointCloud<PointT>::Ptr cloud, KdTree<PointT>* tree, float distanceTol);
+    std::vector<typename pcl::PointCloud<PointT>::Ptr> euclideanCluster(typename pcl::PointCloud<PointT>::Ptr cloud, KdTree<PointT>* tree, float distanceTol, int minSize, int maxSize);
 
     // Cluster Obstacles
     std::vector<typename pcl::PointCloud<PointT>::Ptr> CustomizedClustering(typename pcl::PointCloud<PointT>::Ptr cloud, float clusterTolerance, int minSize, int maxSize);

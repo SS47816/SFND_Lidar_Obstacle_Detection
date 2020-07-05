@@ -175,7 +175,7 @@ std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::C
 
 
 template<typename PointT>
-Box ProcessPointClouds<PointT>::BoundingBox(typename pcl::PointCloud<PointT>::Ptr cluster, int id)
+Box ProcessPointClouds<PointT>::BoundingBox(typename pcl::PointCloud<PointT>::Ptr cluster, int id, int colorId)
 {
 
     // Find bounding box for one of the clusters
@@ -184,6 +184,7 @@ Box ProcessPointClouds<PointT>::BoundingBox(typename pcl::PointCloud<PointT>::Pt
 
     Box box;
     box.id = id;
+    box.color = colorId;
     box.x_min = minPoint.x;
     box.y_min = minPoint.y;
     box.z_min = minPoint.z;
@@ -339,7 +340,7 @@ std::unordered_set<int> ProcessPointClouds<PointT>::Ransac3D(typename pcl::Point
 		float C = (x2 - x1)*(y3 - y1) - (y2 - y1)*(x3 - x1);
 		float D = -(A*x1 + B*y1 + C*z1);
 
-		// Measure distance between every point and fitted line
+		// Measure distance between every point and fitted plane
 		for (int index = 0; index < cloud->points.size(); index++)
 		{
 			if (inliers.count(index) > 0) 
@@ -356,7 +357,7 @@ std::unordered_set<int> ProcessPointClouds<PointT>::Ransac3D(typename pcl::Point
 				inliers.insert(index);
 		}
 
-		// Return indicies of inliers from fitted line with most inliers
+		// Return indicies of inliers from fitted plane with most inliers
 		if (inliers.size() > inliersResult.size())
 			inliersResult = inliers;
 	}
@@ -419,7 +420,7 @@ void ProcessPointClouds<PointT>::clusterHelper(int indice, typename pcl::PointCl
 }
 
 template<typename PointT>
-std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::euclideanCluster(typename pcl::PointCloud<PointT>::Ptr cloud, KdTree<PointT>* tree, float distanceTol)
+std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::euclideanCluster(typename pcl::PointCloud<PointT>::Ptr cloud, KdTree<PointT>* tree, float distanceTol, int minSize, int maxSize)
 {
 	std::vector<typename pcl::PointCloud<PointT>::Ptr> clusters;
 
@@ -441,11 +442,14 @@ std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::e
         for (auto index : clusterIndices)
             cluster->points.push_back(cloud->points[index]);
         
-        cluster->width = cluster->points.size();
-        cluster->height = 1;
-        cluster->is_dense = true;
-
-        clusters.push_back(cluster);
+        if (cluster->points.size() >= minSize && cluster->points.size() <= maxSize)
+        {
+            cluster->width = cluster->points.size();
+            cluster->height = 1;
+            cluster->is_dense = true;
+            clusters.push_back(cluster);
+        }
+        
 		i++;
 	}
 
@@ -464,7 +468,7 @@ std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::C
     for (int i = 0; i < cloud->points.size(); i++) 
     	tree->insert(cloud->points[i], i); 
 
-  	std::vector<typename pcl::PointCloud<PointT>::Ptr> clusters = euclideanCluster(cloud, tree, clusterTolerance);
+  	std::vector<typename pcl::PointCloud<PointT>::Ptr> clusters = euclideanCluster(cloud, tree, clusterTolerance, minSize, maxSize);
 
   	auto endTime = std::chrono::steady_clock::now();
   	auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
@@ -614,4 +618,5 @@ std::vector<int> ProcessPointClouds<PointT>::hungarian(const std::vector<std::ve
 
     return right_pair;
 }
+
 // ########################## End of Project Code ###################################

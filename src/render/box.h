@@ -17,6 +17,7 @@ struct Box
 {
   public:
 	int id;
+	int color;
 	float x_min;
 	float y_min;
 	float z_min;
