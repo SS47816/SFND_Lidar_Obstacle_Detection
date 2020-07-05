@@ -113,7 +113,8 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
     for (auto cluster : cloudClusters)
     {
         // Print cluster size
-        std::cout << "cluster size "; pointProcessorI->numPoints(cluster);
+        // std::cout << "cluster size "; pointProcessorI->numPoints(cluster);
+
         // Render Clusters
         renderPointCloud(viewer, cluster, "obstCloud" + std::to_string(clusterId), colors[clusterId%colors.size()]);
 
@@ -129,22 +130,33 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
         // vectors containing the id of boxes in left and right sets
         std::vector<int> left;
         std::vector<int> right;
-        auto connectionPairs = pointProcessorI->associateBoxes(preBoxes, curBoxes, 0.5, 0.5);
-        auto connectionMatrix = pointProcessorI->connectionMatrix(connectionPairs, left, right);
-        matches = pointProcessorI->hungarian(connectionMatrix);
-
-        for (int j = 0; j < matches.size(); ++j)
+        auto connectionPairs = pointProcessorI->associateBoxes(preBoxes, curBoxes, 0.2, 0.2);
+        if (!connectionPairs.empty())
         {
-            // find the index of the current box that needs to be changed
-            const auto cur_id = right[j]; // right and matches has the same size
-            const auto cur_index = cur_id; // for a current box, its id is actually the same as its index in the vector
-            
-            // find the index of the previous box that the current box corresponds to
-            const auto index = matches[j];
-            const auto pre_id = left[index];
-            for (int i = 0; i < preBoxes.size(); ++i)
+            auto connectionMatrix = pointProcessorI->connectionMatrix(connectionPairs, left, right);
+            matches = pointProcessorI->hungarian(connectionMatrix);
+
+            for (int j = 0; j < matches.size(); ++j)
             {
-                if (cur_id == preBoxes[i].id) curBoxes[cur_index].color = preBoxes[i].color; // change the color of the current box to the same as the previous box
+                // find the index of the current box that needs to be changed
+                const auto cur_id = right[j]; // right and matches has the same size
+                const auto cur_index = cur_id; // for a current box, its id is actually the same as its index in the vector
+                
+                // find the index of the previous box that the current box corresponds to
+                if (matches[j] > -1)
+                {
+                    const auto index = matches[j];
+                    const auto pre_id = left[index];
+                    for (int i = 0; i < preBoxes.size(); ++i)
+                    {
+                        if (cur_id == preBoxes[i].id) 
+                        {
+                            // change the color of the current box to the same as the previous box
+                            std::cout << "Changed color from: " << preBoxes[i].color << " to: " << curBoxes[cur_index].color << std::endl;
+                            curBoxes[cur_index].color = preBoxes[i].color;
+                        }
+                    }
+                }
             }
         }
     }
@@ -156,7 +168,6 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
         renderBox(viewer, box, box.id, colors[box.color], 0.3);
     }
 
-    preBoxes.clear();
     preBoxes = curBoxes;
 }
 
@@ -194,7 +205,7 @@ int main (int argc, char** argv)
     // simpleHighway(viewer);
 
     ProcessPointClouds<pcl::PointXYZI>* pointProcessorI = new ProcessPointClouds<pcl::PointXYZI>();
-    std::vector<boost::filesystem::path> stream = pointProcessorI->streamPcd("../src/sensors/data/pcd/data_1");
+    std::vector<boost::filesystem::path> stream = pointProcessorI->streamPcd("../src/sensors/data/pcd/data_2");
     auto streamIterator = stream.begin();
     pcl::PointCloud<pcl::PointXYZI>::Ptr inputCloudI;
 

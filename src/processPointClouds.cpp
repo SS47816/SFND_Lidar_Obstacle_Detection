@@ -527,9 +527,9 @@ std::vector<std::vector<int>> ProcessPointClouds<PointT>::associateBoxes(const s
 {
     std::vector<std::vector<int>> connectionPairs;
 
-    for (auto& curBox : curBoxes)
+    for (auto& preBox : preBoxes)
     {
-        for (auto& preBox : preBoxes)
+        for (auto& curBox : curBoxes)
         {
             // Add the indecies of a pair of similiar boxes to the matrix
             if (this->compareBoxes(curBox, preBox, displacementTol, volumeTol))
@@ -572,6 +572,7 @@ std::vector<std::vector<int>> ProcessPointClouds<PointT>::connectionMatrix(const
         for (int i = 0; i < left.size(); ++i)
         {
             if (pair[0] == left[i]) left_index = i;
+
         }
 
         int right_index = -1;
@@ -580,9 +581,10 @@ std::vector<std::vector<int>> ProcessPointClouds<PointT>::connectionMatrix(const
             if (pair[1] == right[i]) right_index = i;
         }
 
-        connectionMatrix[left_index][right_index] = 1;
+        if (left_index != -1 && right_index != -1)
+            connectionMatrix[left_index][right_index] = 1;
     }
-    
+
     return connectionMatrix;
 }
 
@@ -611,11 +613,17 @@ std::vector<int> ProcessPointClouds<PointT>::hungarian(const std::vector<std::ve
     std::vector<int> right_pair(connectionMatrix[0].size(), -1);
 
     int count = 0;
+    std::cout << "Matrix Size: " << connectionMatrix.size() << std::endl;
     for (int i = 0; i < connectionMatrix.size(); ++i)
     {
+        std::cout << i << std::endl;
         if (hungarianFind(i, connectionMatrix, right_connected, right_pair)) count++;
     }
 
+    std::cout << "Among: " << right_pair.size() << "Boxes, Hungarian Algorithm Found: " << count << " Matches! " << std::endl;
+    for (auto i : right_pair)
+        std::cout << i << ", ";
+    std::cout << std::endl;
     return right_pair;
 }
 
