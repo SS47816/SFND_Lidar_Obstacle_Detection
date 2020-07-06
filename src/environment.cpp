@@ -102,29 +102,24 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
     
     // Segment the filtered cloud into two parts, road and obstacles.
     std::pair<pcl::PointCloud<pcl::PointXYZI>::Ptr, pcl::PointCloud<pcl::PointXYZI>::Ptr> segmentCloud = pointProcessorI->CustomizedSegmentPlane(filterCloud, 50, 0.2);
-    // renderPointCloud(viewer, segmentCloud.first, "obstCloud", Color(1,0,0));
-    renderPointCloud(viewer, segmentCloud.second, "planeCloud", Color(0.1, 1, 0.1));
 
+    // Cluster the obstacle cloud based on Euclidean Clustering
     std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> cloudClusters = pointProcessorI->CustomizedClustering(segmentCloud.first, 0.4, 30, 2000);
-    
-    // Render the clusters
     int clusterId = 0;
     std::vector<Color> colors = {Color(1, 0.1, 0.2), Color(1, 1, 0.3), Color(0.1, 0.6, 1)};
     std::vector<Box> curBoxes;
     for (auto cluster : cloudClusters)
     {
         // Print cluster size
-        // std::cout << "cluster size "; pointProcessorI->numPoints(cluster);
+        std::cout << "cluster size "; pointProcessorI->numPoints(cluster);
 
-        // Render Clusters
-        renderPointCloud(viewer, cluster, "obstCloud" + std::to_string(clusterId), colors[clusterId%colors.size()]);
-
+        // Create bounding boxes
         curBoxes.emplace_back(pointProcessorI->BoundingBox(cluster, clusterId, clusterId%colors.size()));
         
         ++clusterId;
     }
 
-    // Tracking
+    // Tracking (based on the change in size and displacement between frames)
     std::vector<int> matches;
     if (!preBoxes.empty() && !curBoxes.empty())
     {
@@ -134,67 +129,11 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
 
         // Associate Boxes that are similar in two frames
         auto connectionPairs = pointProcessorI->associateBoxes(preBoxes, curBoxes, 0.5, 0.5);
-        // Debug
-        std::cout << "Previous Boxes: " << preBoxes.size() << std::endl;
-        for (auto& box : preBoxes)
-            std::cout << box.id << ", ";
-        std::cout << std::endl;
-        std::cout << "Current Boxes: " << curBoxes.size() << std::endl;
-        for (auto& box : curBoxes)
-            std::cout << box.id << ", ";
-        std::cout << std::endl;
-
-        std::cout << "connectionPairs: " << std::endl;
-        for (auto row : connectionPairs)
-        {
-            for (auto item : row)
-                std::cout << item << ", ";
-
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-        // std::vector<std::vector<int>> test_pairs{
-        //     {1, 1},
-        //     {1, 2},
-        //     {1, 4},
-        //     {2, 1},
-        //     {2, 3},
-        //     {4, 7}
-        // };
-
 
         if (!connectionPairs.empty())
         {
+            // Construct the connection matrix for Hungarian Algorithm's use
             auto connectionMatrix = pointProcessorI->connectionMatrix(connectionPairs, pre_ids, cur_ids);
-
-            // Debug
-            std::cout << "connectionMatrix: " << std::endl;
-            for (auto row : connectionMatrix)
-            {
-                for (auto item : row)
-                    std::cout << item << ", ";
-
-                std::cout << std::endl;
-            }
-            std::cout << std::endl;
-
-            std::cout << "Previous Frame Box size: " << pre_ids.size() << std::endl;
-            for (auto id : pre_ids)
-                std::cout << id << ", ";
-            std::cout << std::endl;
-
-            std::cout << "Current Frame Box size: " << cur_ids.size() << std::endl;
-            for (auto id : cur_ids)
-                std::cout << id << ", ";
-            std::cout << std::endl;
-
-            // std::vector<std::vector<int>> test_matrix(5, std::vector<int>(4, 0));
-            // test_matrix[0][0] = 1;
-            // test_matrix[0][1] = 1;
-            // test_matrix[1][0] = 1;
-            // test_matrix[2][1] = 1;
-            // test_matrix[3][0] = 1;
-            // test_matrix[4][2] = 1;
 
             // Use Hungarian Algorithm to solve for max-matching
             matches = pointProcessorI->hungarian(connectionMatrix);
@@ -220,14 +159,23 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
         }
     }
 
-    // Render boxes
-    for (auto& box : curBoxes)
-    {
-        // Render Bounding Boxes
-        renderBox(viewer, box, box.id, colors[box.color], 0.3);
-    }
+    // Rendering
+    
+    // Render the ground plane cloud and obstacle cloud
+    renderPointCloud(viewer, segmentCloud.first, "obstCloud", Color(-1, 0, 0));
+    renderPointCloud(viewer, segmentCloud.second, "planeCloud", Color(0.1, 1, 0.1));
 
-    // preBoxes.clear();
+    // Render Clusters
+    // for (auto cluster : cloudClusters)
+    // {
+    //     renderPointCloud(viewer, cluster, "obstCloud" + std::to_string(clusterId), colors[clusterId%colors.size()]);
+    // }
+    
+    // Render Bounding Boxes
+    for (auto& box : curBoxes)
+        renderBox(viewer, box, box.id, colors[box.color], 0.3);
+
+    // Update the preBoxes for next frame's use
     preBoxes = curBoxes;
 }
 
@@ -269,16 +217,10 @@ int main (int argc, char** argv)
     auto streamIterator = stream.begin();
     pcl::PointCloud<pcl::PointXYZI>::Ptr inputCloudI;
 
-    // std::shared_ptr<std::vector<Box>> preBoxes = std::make_shared<std::vector<Box>>();
     std::vector<Box> preBoxes;
     
     while (!viewer->wasStopped ())
     {
-        // Timing
-        auto startTime = std::chrono::steady_clock::now();
-        const int k_processing_frequency = 1; // Hz
-        const std::chrono::milliseconds duration(1000/k_processing_frequency);
-
         // Clear viewer
         viewer->removeAllPointClouds();
         viewer->removeAllShapes();
@@ -291,13 +233,7 @@ int main (int argc, char** argv)
         if(streamIterator == stream.end())
             streamIterator = stream.begin();
         
-        // Delay
-        auto endTime = std::chrono::steady_clock::now();
-  	    auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
-        
-        // std::this_thread::sleep_for(duration - elapsedTime);
-        
-        viewer->spinOnce(1000);
+        viewer->spinOnce();
     }
 
 }
