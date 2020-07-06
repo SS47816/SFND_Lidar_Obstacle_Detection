@@ -643,4 +643,16 @@ std::vector<int> ProcessPointClouds<PointT>::hungarian(const std::vector<std::ve
     return right_pair;
 }
 
+template<typename PointT>
+int ProcessPointClouds<PointT>::searchBoxIndex(const std::vector<Box>& boxes, int id)
+{
+    for (int i = 0; i < boxes.size() ; i++)
+    {
+        if (boxes[i].id == id)
+        return i;
+    }
+
+    return -1;
+}
+
 // ########################## End of Project Code ###################################

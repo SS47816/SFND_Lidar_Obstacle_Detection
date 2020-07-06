@@ -163,6 +163,9 @@ public:
     
     // Customized Hungarian Algorithm
     std::vector<int> hungarian(const std::vector<std::vector<int>>& connectionMatrix);
+
+    // Helper function for searching the box index in boxes given an id
+    int searchBoxIndex(const std::vector<Box>& Boxes, int id);
     
     // ######################### End of Project Code ###############################
 };

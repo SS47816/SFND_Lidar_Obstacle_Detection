@@ -101,7 +101,7 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
     // renderPointCloud(viewer, filterCloud, "filterCloud");
     
     // Segment the filtered cloud into two parts, road and obstacles.
-    std::pair<pcl::PointCloud<pcl::PointXYZI>::Ptr, pcl::PointCloud<pcl::PointXYZI>::Ptr> segmentCloud = pointProcessorI->CustomizedSegmentPlane(filterCloud, 20, 0.4);
+    std::pair<pcl::PointCloud<pcl::PointXYZI>::Ptr, pcl::PointCloud<pcl::PointXYZI>::Ptr> segmentCloud = pointProcessorI->CustomizedSegmentPlane(filterCloud, 50, 0.2);
     // renderPointCloud(viewer, segmentCloud.first, "obstCloud", Color(1,0,0));
     renderPointCloud(viewer, segmentCloud.second, "planeCloud", Color(0.1, 1, 0.1));
 
@@ -135,6 +135,15 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
         // Associate Boxes that are similar in two frames
         auto connectionPairs = pointProcessorI->associateBoxes(preBoxes, curBoxes, 0.5, 0.5);
         // Debug
+        std::cout << "Previous Boxes: " << preBoxes.size() << std::endl;
+        for (auto& box : preBoxes)
+            std::cout << box.id << ", ";
+        std::cout << std::endl;
+        std::cout << "Current Boxes: " << curBoxes.size() << std::endl;
+        for (auto& box : curBoxes)
+            std::cout << box.id << ", ";
+        std::cout << std::endl;
+
         std::cout << "connectionPairs: " << std::endl;
         for (auto row : connectionPairs)
         {
@@ -156,7 +165,7 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
 
         if (!connectionPairs.empty())
         {
-            auto connectionMatrix = pointProcessorI->connectionMatrix(connectionPairs, cur_ids, pre_ids);
+            auto connectionMatrix = pointProcessorI->connectionMatrix(connectionPairs, pre_ids, cur_ids);
 
             // Debug
             std::cout << "connectionMatrix: " << std::endl;
@@ -187,28 +196,25 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
             // test_matrix[3][0] = 1;
             // test_matrix[4][2] = 1;
 
+            // Use Hungarian Algorithm to solve for max-matching
             matches = pointProcessorI->hungarian(connectionMatrix);
 
             for (int j = 0; j < matches.size(); ++j)
             {
+                // find the index of the previous box that the current box corresponds to
+                const auto pre_id = pre_ids[matches[j]];
+                const auto pre_index = pointProcessorI->searchBoxIndex(preBoxes, pre_id);
+                
                 // find the index of the current box that needs to be changed
                 const auto cur_id = cur_ids[j]; // right and matches has the same size
-                const auto cur_index = cur_id; // for a current box, its id is actually the same as its index in the vector
+                const auto cur_index = pointProcessorI->searchBoxIndex(curBoxes, cur_id);
                 
-                // find the index of the previous box that the current box corresponds to
-                if (matches[j] > -1)
+                if (pre_index > -1 && cur_index > -1)
                 {
-                    const auto index = matches[j];
-                    const auto pre_id = pre_ids[index];
-                    for (int i = 0; i < preBoxes.size(); ++i)
-                    {
-                        if (cur_id == preBoxes[i].id) 
-                        {
-                            // change the color of the current box to the same as the previous box
-                            std::cout << "Changed color from: " << preBoxes[i].color << " to: " << curBoxes[cur_index].color << std::endl;
-                            curBoxes[cur_index].color = preBoxes[i].color;
-                        }
-                    }
+                    // change the color of the current box to the same as the previous box
+                    std::cout << "Previous Box: " << preBoxes[pre_index].id << " is Current Box: " << curBoxes[cur_index].id << std::endl;
+                    std::cout << "Changed color from: " << preBoxes[pre_index].color << " to: " << curBoxes[cur_index].color << std::endl;
+                    curBoxes[cur_index].color = preBoxes[pre_index].color;
                 }
             }
         }
@@ -221,6 +227,7 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
         renderBox(viewer, box, box.id, colors[box.color], 0.3);
     }
 
+    // preBoxes.clear();
     preBoxes = curBoxes;
 }
 
@@ -262,6 +269,7 @@ int main (int argc, char** argv)
     auto streamIterator = stream.begin();
     pcl::PointCloud<pcl::PointXYZI>::Ptr inputCloudI;
 
+    // std::shared_ptr<std::vector<Box>> preBoxes = std::make_shared<std::vector<Box>>();
     std::vector<Box> preBoxes;
     
     while (!viewer->wasStopped ())
@@ -287,9 +295,9 @@ int main (int argc, char** argv)
         auto endTime = std::chrono::steady_clock::now();
   	    auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
         
-        std::this_thread::sleep_for(duration - elapsedTime);
+        // std::this_thread::sleep_for(duration - elapsedTime);
         
-        viewer->spinOnce ();
+        viewer->spinOnce(1000);
     }
 
 }
