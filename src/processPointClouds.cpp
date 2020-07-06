@@ -525,6 +525,7 @@ bool ProcessPointClouds<PointT>::compareBoxes(const Box& a, const Box& b, float&
 template<typename PointT>
 std::vector<std::vector<int>> ProcessPointClouds<PointT>::associateBoxes(const std::vector<Box>& preBoxes, const std::vector<Box>& curBoxes, float displacementTol, float volumeTol)
 {
+    auto startTime = std::chrono::steady_clock::now();
     std::vector<std::vector<int>> connectionPairs;
 
     for (auto& preBox : preBoxes)
@@ -539,12 +540,18 @@ std::vector<std::vector<int>> ProcessPointClouds<PointT>::associateBoxes(const s
         }
     }
 
+    auto endTime = std::chrono::steady_clock::now();
+  	auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+  	std::cout << "Associating BBoxes took: " << elapsedTime.count() << " milliseconds" << std::endl;
+
     return connectionPairs;
 }
 
 template<typename PointT>
 std::vector<std::vector<int>> ProcessPointClouds<PointT>::connectionMatrix(const std::vector<std::vector<int>>& connectionPairs, std::vector<int>& left, std::vector<int>& right)
 {
+    auto startTime = std::chrono::steady_clock::now();
+
     // Hash the box ids in the connectionPairs to two vectors(sets), left and right
     for (auto& pair : connectionPairs)
     {
@@ -585,6 +592,10 @@ std::vector<std::vector<int>> ProcessPointClouds<PointT>::connectionMatrix(const
             connectionMatrix[left_index][right_index] = 1;
     }
 
+    auto endTime = std::chrono::steady_clock::now();
+  	auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+  	std::cout << "Construction of connection matrix took " << elapsedTime.count() << " milliseconds" << std::endl;
+
     return connectionMatrix;
 }
 
@@ -609,6 +620,8 @@ bool ProcessPointClouds<PointT>::hungarianFind(const int i, const std::vector<st
 template<typename PointT>
 std::vector<int> ProcessPointClouds<PointT>::hungarian(const std::vector<std::vector<int>>& connectionMatrix)
 {
+    auto startTime = std::chrono::steady_clock::now();
+    
     std::vector<bool> right_connected(connectionMatrix[0].size(), false);
     std::vector<int> right_pair(connectionMatrix[0].size(), -1);
 
@@ -620,10 +633,15 @@ std::vector<int> ProcessPointClouds<PointT>::hungarian(const std::vector<std::ve
         if (hungarianFind(i, connectionMatrix, right_connected, right_pair)) count++;
     }
 
-    std::cout << "Among: " << right_pair.size() << " Boxes, Hungarian Algorithm Found: " << count << " Matches! " << std::endl;
+    auto endTime = std::chrono::steady_clock::now();
+  	auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+  	std::cout << "Hungarian Algorithm took: " << elapsedTime.count() << " milliseconds" << std::endl;
+    std::cout << "Among: " << right_pair.size() << " Current-Frame BBoxes, Found: " << count << " Matches! " << std::endl;
+    
     for (auto i : right_pair)
         std::cout << i << ", ";
     std::cout << std::endl;
+
     return right_pair;
 }
 
