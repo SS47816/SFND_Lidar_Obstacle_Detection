@@ -97,16 +97,18 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
     float max_width = 6.0;
     float pos_height = 1.0;
     float neg_height = 2.0;
+    // Downsampleing, ROI, and removing the car roof
     auto filterCloud = pointProcessorI->FilterCloud(inputCloud, 0.2, Eigen::Vector4f(-max_length, -max_width, -neg_height, 1), Eigen::Vector4f(max_length, max_width, pos_height, 1));
-    // renderPointCloud(viewer, filterCloud, "filterCloud");
     
     // Segment the filtered cloud into two parts, road and obstacles.
     std::pair<pcl::PointCloud<pcl::PointXYZI>::Ptr, pcl::PointCloud<pcl::PointXYZI>::Ptr> segmentCloud = pointProcessorI->CustomizedSegmentPlane(filterCloud, 50, 0.2);
 
     // Cluster the obstacle cloud based on Euclidean Clustering
-    std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> cloudClusters = pointProcessorI->CustomizedClustering(segmentCloud.first, 0.4, 30, 2000);
+    std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> cloudClusters = pointProcessorI->CustomizedClustering(segmentCloud.first, 0.4, 5, 2000);
     int clusterId = 0;
-    std::vector<Color> colors = {Color(1, 0.1, 0.2), Color(1, 1, 0.3), Color(0.1, 0.6, 1)};
+    std::vector<Color> colors = {Color(1, 0.1, 0.2), Color(1, 0.5, 0.1), Color(1, 1, 0.3),
+                                Color(0.3, 0.7, 1), Color(0, 0.4, 1), Color(0.6, 0.2, 1),
+                                Color(1, 0.3, 1), Color(0.8, 0.4, 0.1), Color(0.1, 1, 0.6)};
     std::vector<Box> curBoxes;
     for (auto cluster : cloudClusters)
     {
@@ -128,7 +130,7 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
         std::vector<int> cur_ids;
 
         // Associate Boxes that are similar in two frames
-        auto connectionPairs = pointProcessorI->associateBoxes(preBoxes, curBoxes, 0.8, 0.5);
+        auto connectionPairs = pointProcessorI->associateBoxes(preBoxes, curBoxes, 1.0, 1.0);
 
         if (!connectionPairs.empty())
         {
@@ -151,8 +153,6 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
                 if (pre_index > -1 && cur_index > -1)
                 {
                     // change the color of the current box to the same as the previous box
-                    std::cout << "Previous Box: " << preBoxes[pre_index].id << " is Current Box: " << curBoxes[cur_index].id << std::endl;
-                    std::cout << "Changed color from: " << preBoxes[pre_index].color << " to: " << curBoxes[cur_index].color << std::endl;
                     curBoxes[cur_index].color = preBoxes[pre_index].color;
                 }
             }
@@ -162,8 +162,8 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
     // Rendering
     
     // Render the ground plane cloud and obstacle cloud
-    renderPointCloud(viewer, segmentCloud.first, "obstCloud", Color(-1, 0, 0));
-    renderPointCloud(viewer, segmentCloud.second, "planeCloud", Color(0.1, 1, 0.1));
+    // renderPointCloud(viewer, segmentCloud.first, "obstCloud", Color(-1, 0, 0));
+    renderPointCloud(viewer, segmentCloud.second, "planeCloud", Color(0.2, 1, 0.4));
 
     // Render Clusters and Bounding Boxes
     for (int i = 0; i < curBoxes.size(); i++)
@@ -173,10 +173,6 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
         renderBox(viewer, curBoxes[i], id, color, 0.3);
         renderPointCloud(viewer, cloudClusters[i], "obstCloud" + std::to_string(id), color);
     }
-    
-    // // Render 
-    // for (auto& box : curBoxes)
-    //     renderBox(viewer, box, box.id, colors[box.color], 0.3);
 
     // Update the preBoxes for next frame's use
     preBoxes = curBoxes;

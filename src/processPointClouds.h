@@ -147,8 +147,6 @@ public:
 
 	std::vector<float> getDimension(const Box& a);
 
-	float getVolume(const Box& a);
-
 	bool compareBoxes(const Box& a, const Box& b, float displacementTol, float dimensionTol);
 
     // Link nearby bounding boxes between the previous and previous frame
