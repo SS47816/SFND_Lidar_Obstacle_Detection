@@ -147,7 +147,7 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
 
         if (!connectionPairs.empty())
         {
-            auto connectionMatrix = pointProcessorI->connectionMatrix(test_pairs, pre_ids, cur_ids);
+            auto connectionMatrix = pointProcessorI->connectionMatrix(connectionPairs, cur_ids, pre_ids);
 
             // Debug
             std::cout << "connectionMatrix: " << std::endl;
@@ -173,14 +173,14 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
             for (int j = 0; j < matches.size(); ++j)
             {
                 // find the index of the current box that needs to be changed
-                const auto cur_id = right[j]; // right and matches has the same size
+                const auto cur_id = cur_ids[j]; // right and matches has the same size
                 const auto cur_index = cur_id; // for a current box, its id is actually the same as its index in the vector
                 
                 // find the index of the previous box that the current box corresponds to
                 if (matches[j] > -1)
                 {
                     const auto index = matches[j];
-                    const auto pre_id = left[index];
+                    const auto pre_id = pre_ids[index];
                     for (int i = 0; i < preBoxes.size(); ++i)
                     {
                         if (cur_id == preBoxes[i].id) 
