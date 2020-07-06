@@ -7,6 +7,7 @@
 #include "processPointClouds.h"
 // using templates for processPointClouds so also include .cpp to help linker
 #include "processPointClouds.cpp"
+#include <thread>
 
 std::vector<Car> initHighway(bool renderScene, pcl::visualization::PCLVisualizer::Ptr& viewer)
 {
@@ -128,12 +129,45 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
     if (!preBoxes.empty() && !curBoxes.empty())
     {
         // vectors containing the id of boxes in left and right sets
-        std::vector<int> left;
-        std::vector<int> right;
+        std::vector<int> pre_ids;
+        std::vector<int> cur_ids;
+
+        // Associate Boxes that are similar in two frames
         auto connectionPairs = pointProcessorI->associateBoxes(preBoxes, curBoxes, 0.2, 0.2);
+        // Debug
+        std::vector<std::vector<int>> test_pairs{
+            {1, 1},
+            {1, 2},
+            {1, 4},
+            {2, 1},
+            {2, 3},
+            {4, 7}
+        };
+
+
         if (!connectionPairs.empty())
         {
-            auto connectionMatrix = pointProcessorI->connectionMatrix(connectionPairs, left, right);
+            auto connectionMatrix = pointProcessorI->connectionMatrix(test_pairs, pre_ids, cur_ids);
+
+            // Debug
+            std::cout << "connectionMatrix: " << std::endl;
+            for (auto row : connectionMatrix)
+            {
+                for (auto item : row)
+                    std::cout << item << ", ";
+
+                std::cout << std::endl;
+            }
+            std::cout << std::endl;
+
+            // std::vector<std::vector<int>> test_matrix(5, std::vector<int>(4, 0));
+            // test_matrix[0][0] = 1;
+            // test_matrix[0][1] = 1;
+            // test_matrix[1][0] = 1;
+            // test_matrix[2][1] = 1;
+            // test_matrix[3][0] = 1;
+            // test_matrix[4][2] = 1;
+
             matches = pointProcessorI->hungarian(connectionMatrix);
 
             for (int j = 0; j < matches.size(); ++j)
@@ -213,6 +247,11 @@ int main (int argc, char** argv)
     
     while (!viewer->wasStopped ())
     {
+        // Timing
+        auto startTime = std::chrono::steady_clock::now();
+        const int k_processing_frequency = 1; // Hz
+        const std::chrono::milliseconds duration(1000/k_processing_frequency);
+
         // Clear viewer
         viewer->removeAllPointClouds();
         viewer->removeAllShapes();
@@ -224,7 +263,13 @@ int main (int argc, char** argv)
         streamIterator++;
         if(streamIterator == stream.end())
             streamIterator = stream.begin();
-
+        
+        // Delay
+        auto endTime = std::chrono::steady_clock::now();
+  	    auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+        
+        std::this_thread::sleep_for(duration - elapsedTime);
+        
         viewer->spinOnce ();
     }
 

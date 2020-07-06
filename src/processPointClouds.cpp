@@ -620,7 +620,7 @@ std::vector<int> ProcessPointClouds<PointT>::hungarian(const std::vector<std::ve
         if (hungarianFind(i, connectionMatrix, right_connected, right_pair)) count++;
     }
 
-    std::cout << "Among: " << right_pair.size() << "Boxes, Hungarian Algorithm Found: " << count << " Matches! " << std::endl;
+    std::cout << "Among: " << right_pair.size() << " Boxes, Hungarian Algorithm Found: " << count << " Matches! " << std::endl;
     for (auto i : right_pair)
         std::cout << i << ", ";
     std::cout << std::endl;
