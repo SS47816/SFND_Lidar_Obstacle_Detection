@@ -626,10 +626,8 @@ std::vector<int> ProcessPointClouds<PointT>::hungarian(const std::vector<std::ve
     std::vector<int> right_pair(connectionMatrix[0].size(), -1);
 
     int count = 0;
-    std::cout << "Matrix Size: " << connectionMatrix.size() << std::endl;
     for (int i = 0; i < connectionMatrix.size(); ++i)
     {
-        std::cout << i << std::endl;
         if (hungarianFind(i, connectionMatrix, right_connected, right_pair)) count++;
     }
 

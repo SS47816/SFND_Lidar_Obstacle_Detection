@@ -16,8 +16,8 @@ struct BoxQ
 struct Box
 {
   public:
-	int id;
-	int color;
+	int id = 0;
+	int color = 0;
 	float x_min;
 	float y_min;
 	float z_min;

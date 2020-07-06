@@ -133,16 +133,25 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
         std::vector<int> cur_ids;
 
         // Associate Boxes that are similar in two frames
-        auto connectionPairs = pointProcessorI->associateBoxes(preBoxes, curBoxes, 0.2, 0.2);
+        auto connectionPairs = pointProcessorI->associateBoxes(preBoxes, curBoxes, 0.5, 0.5);
         // Debug
-        std::vector<std::vector<int>> test_pairs{
-            {1, 1},
-            {1, 2},
-            {1, 4},
-            {2, 1},
-            {2, 3},
-            {4, 7}
-        };
+        std::cout << "connectionPairs: " << std::endl;
+        for (auto row : connectionPairs)
+        {
+            for (auto item : row)
+                std::cout << item << ", ";
+
+            std::cout << std::endl;
+        }
+        std::cout << std::endl;
+        // std::vector<std::vector<int>> test_pairs{
+        //     {1, 1},
+        //     {1, 2},
+        //     {1, 4},
+        //     {2, 1},
+        //     {2, 3},
+        //     {4, 7}
+        // };
 
 
         if (!connectionPairs.empty())
@@ -158,6 +167,16 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
 
                 std::cout << std::endl;
             }
+            std::cout << std::endl;
+
+            std::cout << "Previous Frame Box size: " << pre_ids.size() << std::endl;
+            for (auto id : pre_ids)
+                std::cout << id << ", ";
+            std::cout << std::endl;
+
+            std::cout << "Current Frame Box size: " << cur_ids.size() << std::endl;
+            for (auto id : cur_ids)
+                std::cout << id << ", ";
             std::cout << std::endl;
 
             // std::vector<std::vector<int>> test_matrix(5, std::vector<int>(4, 0));
