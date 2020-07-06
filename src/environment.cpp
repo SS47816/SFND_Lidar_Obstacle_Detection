@@ -128,7 +128,7 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
         std::vector<int> cur_ids;
 
         // Associate Boxes that are similar in two frames
-        auto connectionPairs = pointProcessorI->associateBoxes(preBoxes, curBoxes, 0.5, 0.5);
+        auto connectionPairs = pointProcessorI->associateBoxes(preBoxes, curBoxes, 0.8, 0.5);
 
         if (!connectionPairs.empty())
         {
@@ -165,15 +165,18 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointCloud
     renderPointCloud(viewer, segmentCloud.first, "obstCloud", Color(-1, 0, 0));
     renderPointCloud(viewer, segmentCloud.second, "planeCloud", Color(0.1, 1, 0.1));
 
-    // Render Clusters
-    // for (auto cluster : cloudClusters)
-    // {
-    //     renderPointCloud(viewer, cluster, "obstCloud" + std::to_string(clusterId), colors[clusterId%colors.size()]);
-    // }
+    // Render Clusters and Bounding Boxes
+    for (int i = 0; i < curBoxes.size(); i++)
+    {
+        const int id = curBoxes[i].id;
+        const auto color = colors[curBoxes[i].color];
+        renderBox(viewer, curBoxes[i], id, color, 0.3);
+        renderPointCloud(viewer, cloudClusters[i], "obstCloud" + std::to_string(id), color);
+    }
     
-    // Render Bounding Boxes
-    for (auto& box : curBoxes)
-        renderBox(viewer, box, box.id, colors[box.color], 0.3);
+    // // Render 
+    // for (auto& box : curBoxes)
+    //     renderBox(viewer, box, box.id, colors[box.color], 0.3);
 
     // Update the preBoxes for next frame's use
     preBoxes = curBoxes;

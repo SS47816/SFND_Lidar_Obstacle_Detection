@@ -497,22 +497,28 @@ float ProcessPointClouds<PointT>::getVolume(const Box& a)
 }
 
 template<typename PointT>
-bool ProcessPointClouds<PointT>::compareBoxes(const Box& a, const Box& b, float& displacementTol, float& volumeTol)
+bool ProcessPointClouds<PointT>::compareBoxes(const Box& a, const Box& b, float displacementTol, float dimensionTol)
 {
     const std::vector<float> a_ctr = this->getCentroid(a);
     const std::vector<float> b_ctr = this->getCentroid(b);
     const std::vector<float> a_dim = this->getDimension(a);
     const std::vector<float> b_dim = this->getDimension(b);
 
-    // Percetage Displacements ranging between [0.0, 1.0]
-    const float x_dis = fabs(a_ctr[0] - b_ctr[0]) / (a_dim[0] + b_dim[0]) * 2;
-    const float y_dis = fabs(a_ctr[1] - b_ctr[1]) / (a_dim[1] + b_dim[1]) * 2;
-    const float z_dis = fabs(a_ctr[2] - b_ctr[2]) / (a_dim[2] + b_dim[2]) * 2;
+    // Percetage Displacements ranging between [0.0, +oo]
+    const float dis = sqrt((a_ctr[0] - b_ctr[0])*(a_ctr[0] - b_ctr[0])
+                        + (a_ctr[1] - b_ctr[1])*(a_ctr[1] - b_ctr[1])
+                        + (a_ctr[2] - b_ctr[2])*(a_ctr[2] - b_ctr[2]));
+    
+    const float a_max_dim = std::max(a_dim[0], std::max(a_dim[1], a_dim[2]));
+    const float b_max_dim = std::max(b_dim[0], std::max(b_dim[1], b_dim[2]));
+    const float ctr_dis = dis / std::min(a_max_dim, b_max_dim);
 
-    // Volume similiarity value between [0.0, 1.0]
-    float vlm_diff = fabs(this->getVolume(a) - this->getVolume(b)) / (this->getVolume(a) + this->getVolume(b)) * 2;
+    // Dimension similiarity values between [0.0, 1.0]
+    const float x_dim = 2 * (a_dim[0] - b_dim[0]) / (a_dim[0] + b_dim[0]);
+    const float y_dim = 2 * (a_dim[1] - b_dim[1]) / (a_dim[1] + b_dim[1]);
+    const float z_dim = 2 * (a_dim[2] - b_dim[2]) / (a_dim[2] + b_dim[2]);
 
-    if (x_dis <= displacementTol && y_dis <= displacementTol && z_dis <= displacementTol && vlm_diff <= volumeTol)
+    if (ctr_dis <= displacementTol && x_dim <= dimensionTol && y_dim <= dimensionTol && z_dim <= dimensionTol)
     {
         return true;
     }
@@ -523,7 +529,7 @@ bool ProcessPointClouds<PointT>::compareBoxes(const Box& a, const Box& b, float&
 }
 
 template<typename PointT>
-std::vector<std::vector<int>> ProcessPointClouds<PointT>::associateBoxes(const std::vector<Box>& preBoxes, const std::vector<Box>& curBoxes, float displacementTol, float volumeTol)
+std::vector<std::vector<int>> ProcessPointClouds<PointT>::associateBoxes(const std::vector<Box>& preBoxes, const std::vector<Box>& curBoxes, float displacementTol, float dimensionTol)
 {
     auto startTime = std::chrono::steady_clock::now();
     std::vector<std::vector<int>> connectionPairs;
@@ -533,7 +539,7 @@ std::vector<std::vector<int>> ProcessPointClouds<PointT>::associateBoxes(const s
         for (auto& curBox : curBoxes)
         {
             // Add the indecies of a pair of similiar boxes to the matrix
-            if (this->compareBoxes(curBox, preBox, displacementTol, volumeTol))
+            if (this->compareBoxes(curBox, preBox, displacementTol, dimensionTol))
             {
                 connectionPairs.push_back({preBox.id, curBox.id});
             }

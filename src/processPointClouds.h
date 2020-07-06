@@ -149,11 +149,10 @@ public:
 
 	float getVolume(const Box& a);
 
-	bool compareBoxes(const Box& a, const Box& b, float& displacementTol, float& volumeTol);
+	bool compareBoxes(const Box& a, const Box& b, float displacementTol, float dimensionTol);
 
-    
     // Link nearby bounding boxes between the previous and previous frame
-    std::vector<std::vector<int>> associateBoxes(const std::vector<Box>& preBoxes, const std::vector<Box>& curBoxes, float displacementTol, float volumeTol);
+    std::vector<std::vector<int>> associateBoxes(const std::vector<Box>& preBoxes, const std::vector<Box>& curBoxes, float displacementTol, float dimensionTol);
 
     // connectionMatrix
     std::vector<std::vector<int>> connectionMatrix(const std::vector<std::vector<int>>& connectionPairs, std::vector<int>& left, std::vector<int>& right);
